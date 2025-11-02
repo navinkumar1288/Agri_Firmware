@@ -71,7 +71,7 @@ unsigned long stepStartMs = 0;
 bool pumpIsOn = false;
 
 // Schedule definitions
-StaticJsonDocument<4096> scheduleDoc;
+//JsonDocument<4096> scheduleDoc;
 String currentScheduleId = "";
 time_t scheduleStartEpoch = 0;
 uint32_t pumpOnLeadMs = 2000;
