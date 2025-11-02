@@ -3,11 +3,6 @@
 #include "utils.h"
 #include "config.h"
 
-
-// ---------------- Display (Heltec) ----------------
-// Use Heltec constructor that matches the installed HT_SSD1306Wire.h
-static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED);
-
 const unsigned long DISPLAY_REFRESH_MS = 800;
 unsigned long lastDisplayMs = 0;
 
