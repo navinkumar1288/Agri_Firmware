@@ -3,6 +3,7 @@
 #include "system_config.h"
 #include "radio.h"
 #include "storage.h"
+#include "config.h"
 #include <ctype.h>
 
 void publishStatusMsg(const String &msg) {
