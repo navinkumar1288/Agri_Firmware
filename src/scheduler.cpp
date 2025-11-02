@@ -5,17 +5,6 @@
 #include "storage.h"
 #include <ctype.h>
 
-extern bool pumpIsOn;
-
-std::vector<SeqStep> seq;
-int currentStepIndex = -1;
-unsigned long stepStartMillis = 0;
-bool scheduleLoaded = false;
-bool scheduleRunning = false;
-unsigned long lastProgressSave = 0;
-unsigned long lastStatusPublish = 0;
-unsigned long statusPublishInterval = 15 * 1000;
-
 void publishStatusMsg(const String &msg) {
   String out = msg; Serial.println("PublishStatus: " + out);
   if (mqttAvailable) { modemPublish(MQTT_TOPIC_STATUS, out); }
