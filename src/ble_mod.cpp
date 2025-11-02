@@ -3,6 +3,7 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
+#include "config.h"
 
 class ControllerBLECallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pChar) override {
