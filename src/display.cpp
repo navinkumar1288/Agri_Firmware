@@ -1,6 +1,7 @@
 #include "HT_SSD1306Wire.h"  
 #include "display.h"
 #include "utils.h"
+#include "config.h"
 
 
 // ---------------- Display (Heltec) ----------------
