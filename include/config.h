@@ -8,6 +8,7 @@
 #include <RTClib.h>
 #include "heltec.h"
 #include "LoRaWan_APP.h"
+#include "HT_SSD1306Wire.h"
 
 // ---- Pins ----
 #define MODEM_RX 45
@@ -17,6 +18,9 @@
 #define RTC_SCL 42
 #define PUMP_PIN 25
 #define PUMP_ACTIVE_HIGH true
+
+// ---------------- Display (Heltec) ----------------
+static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED);
 
 // ---- WiFi & MQTT ----
 #define WIFI_SSID "sekarfarm"
