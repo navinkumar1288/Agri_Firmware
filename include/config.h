@@ -70,6 +70,15 @@ struct SeqStep { int node_id; uint32_t duration_ms; };
 unsigned long stepStartMs = 0;
 bool pumpIsOn = false;
 
+// Schedule definitions
+StaticJsonDocument<4096> scheduleDoc;
+String currentScheduleId = "";
+time_t scheduleStartEpoch = 0;
+uint32_t pumpOnLeadMs = 2000;
+uint32_t pumpOffDelayMs = 5000;
+uint32_t LAST_CLOSE_DELAY_MS = 60000;
+uint32_t DRIFT_THRESHOLD_S = 300;
+
 std::vector<SeqStep> seq;
 int currentStepIndex = -1;
 unsigned long stepStartMillis = 0;
