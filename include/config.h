@@ -70,3 +70,4 @@ bool scheduleRunning = false;
 unsigned long lastProgressSave = 0;
 unsigned long lastStatusPublish = 0;
 unsigned long statusPublishInterval = 15 * 1000;
+String currentScheduleId = "";
