@@ -1,4 +1,5 @@
 #pragma once
+#include "utils.h"
 
 void modemInit();
 String sendAT(const String &cmd, unsigned long timeoutMs = 2000);
