@@ -18,9 +18,6 @@
 #define PUMP_PIN 25
 #define PUMP_ACTIVE_HIGH true
 
-// ---------------- Display (Heltec) ----------------
-static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED);
-
 // ---- WiFi & MQTT ----
 #define WIFI_SSID "sekarfarm"
 #define WIFI_PASS "welcome123"
