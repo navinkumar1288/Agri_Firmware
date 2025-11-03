@@ -1,4 +1,5 @@
 #include "storage.h"
+#include "config.h"
 
 //std::vector<Schedule> schedules;
 
