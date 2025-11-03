@@ -7,10 +7,7 @@
 #include <Wire.h>
 #include <RTClib.h>
 #include "heltec.h"
-#include "LoRaWan_APP.h"
 #include "HT_SSD1306Wire.h"
-#include <Arduino.h>
-#include <LittleFS.h>
 #include <vector>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
