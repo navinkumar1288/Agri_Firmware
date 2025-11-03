@@ -1,4 +1,6 @@
 #pragma once
+#include <vector>
+#include "utils.h"
 
 void radioInit();
 void handleLoRaIncoming();
