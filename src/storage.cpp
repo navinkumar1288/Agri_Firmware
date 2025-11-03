@@ -1,4 +1,5 @@
 #include "storage.h"
+#include "config.h"
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
