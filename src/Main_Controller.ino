@@ -1,3 +1,5 @@
+#include "config.h"
+#include "utils.h"
 #include "storage.h"
 #include "system_config.h"
 #include "modem.h"
@@ -6,7 +8,6 @@
 #include "display.h"
 #include "rtc_sync.h"
 #include "ble_mod.h"
-#include "utils.h"
 
 void setup() {
   Serial.begin(115200); delay(200);
@@ -39,7 +40,11 @@ void loop() {
   handleLoRaIncoming();
 
   // process one incoming queued message
-  String iq; if (dequeueIncoming(iq)) { Serial.println("Processing queued incoming: " + iq); processIncomingScheduleString(iq); }
+  String iq; 
+  if (dequeueIncoming(iq)) { 
+    Serial.println("Processing queued incoming: " + iq); 
+    processIncomingScheduleString(iq); 
+  }
 
   runScheduleLoop();
 
