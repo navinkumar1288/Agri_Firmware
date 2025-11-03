@@ -63,6 +63,7 @@ const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 19800;
 const int daylightOffset_sec = 0;
 
+struct SeqStep { int node_id; uint32_t duration_ms; };
 std::vector<SeqStep> seq;
 int currentStepIndex = -1;
 unsigned long stepStartMillis = 0;
