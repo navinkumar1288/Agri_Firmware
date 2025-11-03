@@ -64,3 +64,12 @@ static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RS
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 19800;
 const int daylightOffset_sec = 0;
+
+std::vector<SeqStep> seq;
+int currentStepIndex = -1;
+unsigned long stepStartMillis = 0;
+bool scheduleLoaded = false;
+bool scheduleRunning = false;
+unsigned long lastProgressSave = 0;
+unsigned long lastStatusPublish = 0;
+unsigned long statusPublishInterval = 15 * 1000;
