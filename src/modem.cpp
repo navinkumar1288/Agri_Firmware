@@ -1,4 +1,5 @@
 #include "modem.h"
+#include "config.h"
 #include "system_config.h"
 #include "storage.h"
 
