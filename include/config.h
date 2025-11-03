@@ -8,6 +8,7 @@
 #include <RTClib.h>
 #include "heltec.h"
 #include "LoRaWan_APP.h"
+#include <vector>
 
 // ---- Pins ----
 #define MODEM_RX 45
