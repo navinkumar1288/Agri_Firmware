@@ -1,4 +1,10 @@
 #pragma once
+#include <Arduino.h>
+#include <Preferences.h>
+#include <LittleFS.h>
+#include <vector>
+#include <RTClib.h>
+
 
 extern Preferences prefs;
 extern RTC_DS3231 rtc;
