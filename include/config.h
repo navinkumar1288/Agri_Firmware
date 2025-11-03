@@ -7,8 +7,7 @@
 #include <Wire.h>
 #include <RTClib.h>
 #include "heltec.h"
-#include "HT_SSD1306Wire.h"
-#include <vector>
+#include "LoRaWan_APP.h"
 
 // ---- Pins ----
 #define MODEM_RX 45
@@ -65,31 +64,3 @@ static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RS
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 19800;
 const int daylightOffset_sec = 0;
-
-struct SeqStep { int node_id; uint32_t duration_ms; };
-unsigned long stepStartMs = 0;
-bool pumpIsOn = false;
-
-// Schedule definitions
-//JsonDocument<4096> scheduleDoc;
-String currentScheduleId = "";
-time_t scheduleStartEpoch = 0;
-uint32_t pumpOnLeadMs = 2000;
-uint32_t pumpOffDelayMs = 5000;
-uint32_t LAST_CLOSE_DELAY_MS = 60000;
-uint32_t DRIFT_THRESHOLD_S = 300;
-
-std::vector<SeqStep> seq;
-int currentStepIndex = -1;
-unsigned long stepStartMillis = 0;
-bool scheduleLoaded = false;
-bool scheduleRunning = false;
-unsigned long lastProgressSave = 0;
-unsigned long lastStatusPublish = 0;
-unsigned long statusPublishInterval = 15 * 1000;
-
-struct Schedule {
-  String id; char rec; time_t start_epoch; String timeStr; uint8_t weekday_mask;
-  std::vector<SeqStep> seq; uint32_t pump_on_before_ms; uint32_t pump_off_after_ms;
-  bool enabled; time_t next_run_epoch; uint32_t ts;
-};
