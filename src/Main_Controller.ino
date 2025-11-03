@@ -11,14 +11,6 @@
 
 struct SeqStep { int node_id; uint32_t duration_ms; };
 std::vector<SeqStep> seq;
-int currentStepIndex = -1;
-unsigned long stepStartMillis = 0;
-bool scheduleLoaded = false;
-bool scheduleRunning = false;
-unsigned long lastProgressSave = 0;
-unsigned long lastStatusPublish = 0;
-unsigned long statusPublishInterval = 15 * 1000;
-String currentScheduleId = "";
 
 void setup() {
   Serial.begin(115200); delay(200);
