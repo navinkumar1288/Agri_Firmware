@@ -8,18 +8,6 @@
 
 extern bool pumpIsOn;
 
-void publishStatusMsg(const String &msg) {
-  String out = msg; Serial.println("PublishStatus: " + out);
-  if (mqttAvailable) { modemPublish(MQTT_TOPIC_STATUS, out); }
-  if (ENABLE_SMS_BROADCAST) {
-    ModemSerial.print("AT+CMGF=1\r\n"); delay(50);
-    ModemSerial.print(String("AT+CMGS=\"") + sysConfig.adminPhones + String("\"\r\n")); delay(200);
-    ModemSerial.print(out); ModemSerial.write(0x1A); delay(100);
-  }
-  radioSend(String("STAT|") + out);
-}
-void broadcastStatus(const String &msg) { publishStatusMsg(msg); }
-
 String normalizePhoneLocal(const String &in) {
   String s = in; s.trim(); s.replace(" ", "");
   if (s.length() > 0 && s.charAt(0) == '0') s = s.substring(1);
