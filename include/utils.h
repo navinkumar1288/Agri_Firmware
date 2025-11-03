@@ -4,6 +4,7 @@
 #include <LittleFS.h>
 #include <vector>
 #include <RTClib.h>
+#include "HT_SSD1306Wire.h"
 
 extern Preferences prefs;
 extern RTC_DS3231 rtc;
