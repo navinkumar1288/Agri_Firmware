@@ -9,8 +9,6 @@
 #include "rtc_sync.h"
 #include "ble_mod.h"
 
-struct SeqStep { int node_id; uint32_t duration_ms; };
-std::vector<SeqStep> seq;
 
 void setup() {
   Serial.begin(115200); delay(200);
