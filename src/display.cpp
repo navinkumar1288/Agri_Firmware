@@ -1,7 +1,7 @@
 #include "display.h"
+#include "config.h"
 #include "utils.h"
 #include "HT_SSD1306Wire.h"
-#include "config.h"
 
 // Use Heltec constructor that matches the installed HT_SSD1306Wire.h
 static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RST_OLED);
@@ -27,8 +27,8 @@ void displayLoop() {
   display.drawString(0,12, String("Time:") + String(formatTimeShort()) + " S:" + (scheduleRunning?"RUN":"IDLE"));
   display.drawString(0,26, String("SCH:") + (currentScheduleId.length()?currentScheduleId:"NONE"));
   String nodeLine = "Node:N/A";
-  if (currentStepIndex >= 0 && currentStepIndex < (int)seq.size())
-     nodeLine = "Node:" + String(seq[currentStepIndex].node_id);
+  if (currentStepIndex >= 0 && currentStepIndex < (int)SeqStep.size())
+     nodeLine = "Node:" + String(SeqStep[currentStepIndex].node_id);
   
   display.drawString(0,40, nodeLine);
   display.display();
