@@ -67,7 +67,7 @@ static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RS
 
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 19800;
-const int daylightOffset_sec = 0
+const int daylightOffset_sec = 0;
 
 struct SeqStep { int node_id; uint32_t duration_ms; };
 unsigned long stepStartMs = 0;
