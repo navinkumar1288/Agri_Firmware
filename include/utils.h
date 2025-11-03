@@ -1,5 +1,4 @@
 #pragma once
-#include "config.h"
 
 extern Preferences prefs;
 extern RTC_DS3231 rtc;
