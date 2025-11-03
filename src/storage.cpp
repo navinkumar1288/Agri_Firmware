@@ -1,6 +1,6 @@
 #include "storage.h"
 
-std::vector<Schedule> schedules;
+//std::vector<Schedule> schedules;
 
 bool initStorage() {
   if (!LittleFS.begin(true)) { Serial.println("LittleFS mount failed"); return false; }
