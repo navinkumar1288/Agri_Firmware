@@ -1,6 +1,5 @@
 #include "display.h"
 #include "utils.h"
-#include "config.h"
 
 const unsigned long DISPLAY_REFRESH_MS = 800;
 unsigned long lastDisplayMs = 0;
