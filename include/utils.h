@@ -5,7 +5,6 @@
 #include <vector>
 #include <RTClib.h>
 
-
 extern Preferences prefs;
 extern RTC_DS3231 rtc;
 extern TwoWire WireRTC;
