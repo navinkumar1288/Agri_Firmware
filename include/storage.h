@@ -1,6 +1,4 @@
 #pragma once
-#include "utils.h"
-#include <ArduinoJson.h>
 
 struct SeqStep { int node_id; uint32_t duration_ms; };
 struct Schedule {
