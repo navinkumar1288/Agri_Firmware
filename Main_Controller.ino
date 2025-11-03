@@ -44,6 +44,7 @@ static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RS
 #define DEFAULT_MQTT_USER "navin"
 #define DEFAULT_MQTT_PASS "HaiNavin33"
 #define DEFAULT_SIM_APN "airtelgprs.com"
+#define DEFAULT_ADMIN_PHONE "+919944272647"
 
 #define MQTT_TOPIC_SCHEDULE "irrigation/site01/schedule/set"
 #define MQTT_TOPIC_CONFIG   "irrigation/site01/config/system/set"
@@ -57,7 +58,7 @@ static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RS
 #define LORA_FREQ 865000000L  // 865 MHz
 
 // Controller pump pin
-#define PUMP_PIN 25
+#define PUMP_PIN 47
 #define PUMP_ACTIVE_HIGH true
 
 // BLE
@@ -320,7 +321,7 @@ void loadSystemConfig() {
   sysConfig.mqttPort = prefs.getInt("mqtt_port", DEFAULT_MQTT_PORT);
   sysConfig.mqttUser = prefs.getString("mqtt_user", DEFAULT_MQTT_USER);
   sysConfig.mqttPass = prefs.getString("mqtt_pass", DEFAULT_MQTT_PASS);
-  sysConfig.adminPhones = prefs.getString("admin_phones", "+919944272647");
+  sysConfig.adminPhones = prefs.getString("admin_phones", DEFAULT_ADMIN_PHONE);
   sysConfig.simApn = prefs.getString("sim_apn", DEFAULT_SIM_APN);
   sysConfig.sharedTok = prefs.getString("shared_tok", "MYTOK");
   sysConfig.recoveryTok = prefs.getString("recovery_tok", DEFAULT_RECOV_TOK);
