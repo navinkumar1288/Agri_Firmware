@@ -9,9 +9,6 @@
 #include "heltec.h"
 #include "HT_SSD1306Wire.h"
 #include <vector>
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
 
 // ---- Pins ----
 #define MODEM_RX 45
