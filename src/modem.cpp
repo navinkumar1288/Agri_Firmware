@@ -10,6 +10,18 @@ unsigned long lastMqttURCTime = 0;
 bool mqttAvailable = true;
 bool ENABLE_SMS_BROADCAST = false;
 
+void publishStatusMsg(const String &msg) {
+  String out = msg; Serial.println("PublishStatus: " + out);
+  if (mqttAvailable) { modemPublish(MQTT_TOPIC_STATUS, out); }
+  if (ENABLE_SMS_BROADCAST) {
+    ModemSerial.print("AT+CMGF=1\r\n"); delay(50);
+    ModemSerial.print(String("AT+CMGS=\"") + sysConfig.adminPhones + String("\"\r\n")); delay(200);
+    ModemSerial.print(out); ModemSerial.write(0x1A); delay(100);
+  }
+  radioSend(String("STAT|") + out);
+}
+void broadcastStatus(const String &msg) { publishStatusMsg(msg); }
+
 String sendAT(const String &cmd, unsigned long timeoutMs) {
   while (ModemSerial.available()) ModemSerial.read();
   ModemSerial.print(cmd + String("\r\n"));
