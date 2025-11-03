@@ -27,10 +27,6 @@ void displayLoop() {
   display.drawString(0,12, String("Time:") + String(formatTimeShort()) + " S:" + (scheduleRunning?"RUN":"IDLE"));
   display.drawString(0,26, String("SCH:") + (currentScheduleId.length()?currentScheduleId:"NONE"));
   String nodeLine = "Node:N/A";
-  if (currentStepIndex >= 0 && currentStepIndex < ((int)SeqStep.size())){
-     nodeLine = "Node:" + String(SeqStep[currentStepIndex].node_id);
-  }
-  
   display.drawString(0,40, nodeLine);
   display.display();
 }
