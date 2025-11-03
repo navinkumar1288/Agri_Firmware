@@ -1,4 +1,5 @@
 #include "ble_mod.h"
+#include "config.h"
 
 class ControllerBLECallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pChar) override {
