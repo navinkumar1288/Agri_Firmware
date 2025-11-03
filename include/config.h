@@ -90,3 +90,9 @@ bool scheduleRunning = false;
 unsigned long lastProgressSave = 0;
 unsigned long lastStatusPublish = 0;
 unsigned long statusPublishInterval = 15 * 1000;
+
+struct Schedule {
+  String id; char rec; time_t start_epoch; String timeStr; uint8_t weekday_mask;
+  std::vector<SeqStep> seq; uint32_t pump_on_before_ms; uint32_t pump_off_after_ms;
+  bool enabled; time_t next_run_epoch; uint32_t ts;
+};
