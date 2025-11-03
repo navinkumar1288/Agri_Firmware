@@ -6,6 +6,7 @@
 #include "display.h"
 #include "rtc_sync.h"
 #include "ble_mod.h"
+#include "utils.h"
 
 void setup() {
   Serial.begin(115200); delay(200);
