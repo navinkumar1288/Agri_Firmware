@@ -1,4 +1,5 @@
 #include "ble_mod.h"
+#include "config.h"
 #include "utils.h"
 #include <BLEDevice.h>
 #include <BLEUtils.h>
