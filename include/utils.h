@@ -6,6 +6,9 @@
 #include <RTClib.h>
 #include "HT_SSD1306Wire.h"
 #include <vector>
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
 
 extern Preferences prefs;
 extern RTC_DS3231 rtc;
