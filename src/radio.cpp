@@ -1,4 +1,5 @@
 #include "radio.h"
+#include "utils.h"
 
 static RadioEvents_t RadioEvents;
 volatile bool rxReceivedFlag = false;
