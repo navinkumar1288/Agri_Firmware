@@ -1,5 +1,3 @@
-#include "config.h"
-#include "utils.h"
 #include "storage.h"
 #include "system_config.h"
 #include "modem.h"
