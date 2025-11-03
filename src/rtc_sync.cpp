@@ -1,5 +1,7 @@
 #include "rtc_sync.h"
+#include "utils.h"
 #include "config.h"
+#include <WiFi.h>
 
 bool connectWiFiOnce() {
   if (WiFi.status() == WL_CONNECTED) return true;
