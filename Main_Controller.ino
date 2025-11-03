@@ -183,12 +183,15 @@ void VextOFF(){ pinMode(Vext, OUTPUT); digitalWrite(Vext, HIGH); }
 
 // ---------- Display helpers ----------
 void displayInitHeltec() {
-  VextON();
+  VextON(); 
   delay(50);
   display.init();
-  display.clear(); display.setFont(ArialMT_Plain_10);
-  display.drawString(0,0,"Irrigation Controller");
-  display.display(); delay(400); display.clear(); display.display();
+  display.setFont(ArialMT_Plain_10);
+  display.clear();
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(0, 0, "Irrigation Controller");
+  display.drawString(0, 12, "Booting...");
+  display.display();
 }
 String formatTimeShort() {
   time_t now = time(nullptr); struct tm tmnow; localtime_r(&now, &tmnow);
@@ -205,7 +208,7 @@ void displayLoop() {
   display.drawString(0,12, String("Time:") + String(formatTimeShort()) + " S:" + (scheduleRunning?"RUN":"IDLE"));
   display.drawString(0,26, String("SCH:") + (currentScheduleId.length()?currentScheduleId:"NONE"));
   String nodeLine = "Node:N/A";
-  //if (currentStepIndex>=0 && currentStepIndex < (int)seq.size()) nodeLine = "Node:" + String(seq[currentStepIndex].node_id);
+  if (currentStepIndex>=0 && currentStepIndex < (int)seq.size()) nodeLine = "Node:" + String(seq[currentStepIndex].node_id);
   display.drawString(0,40, nodeLine);
   display.display();
 }
