@@ -178,9 +178,14 @@ String nowISO8601() {
 }
 void debugPrint(const String &s){ Serial.println(s); }
 
+void VextON(){ pinMode(Vext, OUTPUT); digitalWrite(Vext, LOW); }
+void VextOFF(){ pinMode(Vext, OUTPUT); digitalWrite(Vext, HIGH); }
+
 // ---------- Display helpers ----------
 void displayInitHeltec() {
-  //Heltec.begin(true, false, true);
+  VextON();
+  delay(50);
+  display.init();
   display.clear(); display.setFont(ArialMT_Plain_10);
   display.drawString(0,0,"Irrigation Controller");
   display.display(); delay(400); display.clear(); display.display();
@@ -200,7 +205,7 @@ void displayLoop() {
   display.drawString(0,12, String("Time:") + String(formatTimeShort()) + " S:" + (scheduleRunning?"RUN":"IDLE"));
   display.drawString(0,26, String("SCH:") + (currentScheduleId.length()?currentScheduleId:"NONE"));
   String nodeLine = "Node:N/A";
-  if (currentStepIndex>=0 && currentStepIndex < (int)seq.size()) nodeLine = "Node:" + String(seq[currentStepIndex].node_id);
+  //if (currentStepIndex>=0 && currentStepIndex < (int)seq.size()) nodeLine = "Node:" + String(seq[currentStepIndex].node_id);
   display.drawString(0,40, nodeLine);
   display.display();
 }
