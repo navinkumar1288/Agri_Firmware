@@ -1,4 +1,6 @@
 #pragma once
+#include "utils.h"
+#include <vector>
 #include "storage.h"
 
 struct SystemConfig {
