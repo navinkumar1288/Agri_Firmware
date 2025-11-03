@@ -1,5 +1,5 @@
 #include "radio.h"
-#include "config.h"
+#include "LoRaWan_APP.h"
 
 static RadioEvents_t RadioEvents;
 volatile bool rxReceivedFlag = false;
