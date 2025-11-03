@@ -2,6 +2,7 @@
 #include "config.h"
 #include "system_config.h"
 #include "storage.h"
+#include "radio.h"
 
 HardwareSerial ModemSerial(2);
 String modemLineBuffer = "";
