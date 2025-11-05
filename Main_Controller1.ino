@@ -389,6 +389,8 @@ void modemInit(){
   sendAT("AT+CMGF=1", 1000);
   sendAT("AT+CSCS=\"GSM\"", 1000);
   sendAT("AT+CNMI=2,1,0,0,0", 1000);
+  sendAT("AT+QURCCFG=\"urcport\",\"uart1\""); // ensure URCs on UART1
+  sendAT("AT+QCFG=\"urc/ri/smsincoming\"");   // query smsincoming config
 }
 
 bool modemConfigureAndConnectMQTT() {
@@ -755,7 +757,7 @@ void publishStatusMsg(const String &msg) {
       }
     }
   }
-  sendLoRaCmdRaw(String("STAT|") + out);
+  //sendLoRaCmdRaw(String("STAT|") + out); // need to fix ++++++++++++++++++++
 }
 
 void broadcastStatus(const String &msg) { publishStatusMsg(msg); }
@@ -1140,7 +1142,7 @@ void loop() {
     lastSchedulerCheck = millis();
   }
   checkRtcDriftAndSync();
-  if (millis() - lastStatusPublish > statusPublishInterval) { publishStatusMsg(String("EVT|RUN|S=") + (scheduleRunning?String("1"):String("0"))); lastStatusPublish = millis(); }
+  //if (millis() - lastStatusPublish > statusPublishInterval) { publishStatusMsg(String("EVT|RUN|S=") + (scheduleRunning?String("1"):String("0"))); lastStatusPublish = millis(); } // need to fix ++++++++++++++++++++
   displayLoop();
   delay(20);
 }
