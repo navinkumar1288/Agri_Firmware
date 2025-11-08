@@ -17,6 +17,7 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
+#include <BLE2902.h> // for notifications descriptor
 
 // ---------------- CONFIG / pins ----------------
 // Modem (TracX EC200U) UART pins (Heltec defaults you provided)
@@ -78,6 +79,13 @@ static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RS
 #define BLE_DEVICE_NAME "IrrigCtrl"
 #define BLE_SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define BLE_CHAR_UUID    "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+#define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
+#define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
+BLEServer *pServer = nullptr;
+BLECharacteristic *pTxCharacteristic = nullptr;
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
 
 // Behavior tuning
 const uint32_t LORA_ACK_TIMEOUT_MS = 3000;
@@ -762,19 +770,6 @@ void handleLoRaIncoming() {
   publishStatusMsg(String("EVT|INQ|ENQ|SRC=LORA"));
 }
 
-// BLE callbacks
-class ControllerBLECallbacks : public BLECharacteristicCallbacks {
-  void onWrite(BLECharacteristic *pChar) override {
-    auto v = pChar->getValue();
-    String payload = String(v.c_str());
-    payload.trim();
-    if (payload.length() == 0) return;
-    if (payload.indexOf("SRC=") < 0) payload += String(",SRC=BT");
-    enqueueIncoming(payload);
-    publishStatusMsg(String("EVT|INQ|ENQ|SRC=BT"));
-  }
-};
-
 // ---------- Modem SMS read helper ----------
 String modemReadSMSByIndex(int index, String &outSender) {
   outSender = "";
@@ -953,13 +948,28 @@ void processIncomingScheduleString(const String &payload) {
 
 // ---------- Modified publish / broadcast that sends SMS per-admin ----------
 void publishStatusMsg(const String &msg) {
-  String out = msg; Serial.println("PublishStatus: " + out);
+  String out = msg;
+  Serial.println("PublishStatus: " + out);
+
+  // 1) MQTT (if available)
   if (mqttAvailable) { modemPublish(MQTT_TOPIC_STATUS, out); }
+
+  // 2) BLE notify (if client connected and TX char exists)
+  if (deviceConnected && pTxCharacteristic != nullptr) {
+    // Build a compact BLE notification payload (avoid huge messages)
+    String btMsg = String("STAT|") + out;
+    if (btMsg.length() > 200) btMsg = btMsg.substring(0, 200);
+    pTxCharacteristic->setValue((uint8_t*)btMsg.c_str(), btMsg.length());
+    pTxCharacteristic->notify();
+    Serial.print("BLE notify sent: ");
+    Serial.println(btMsg);
+    delay(10); // short breathing room for BLE stack
+  }
+
+  // 3) SMS fallback (if enabled)
   if (ENABLE_SMS_BROADCAST) {
-    // Send SMS to each admin number individually
     auto admins = adminPhoneList();
     if (admins.size() == 0) {
-      // fallback: send to sysConfig.adminPhones as single string
       String single = sysConfig.adminPhones;
       if (single.length()) {
         if (sendSMS(single, out)) Serial.println("SMS sent to fallback admin string");
@@ -969,13 +979,16 @@ void publishStatusMsg(const String &msg) {
       for (auto &num : admins) {
         String n = normalizePhone(num);
         Serial.println(String("Sending SMS to ") + n + ": " + out);
-        if (sendSMS(n, out)) Serial.println("SMS OK to " + n);
-        else Serial.println("SMS FAILED to " + n);
-        delay(500); // give modem a little breather between messages
+        if (modemReadyForSMS()) {
+          if (sendSMS(n, out)) Serial.println("SMS OK to " + n);
+          else Serial.println("SMS FAILED to " + n);
+        } else {
+          Serial.println("Modem not ready for SMS (skipping): " + n);
+        }
+        delay(500);
       }
     }
   }
-  //sendLoRaCmdRaw(String("STAT|") + out); // need to fix ++++++++++++++++++++
 }
 
 void broadcastStatus(const String &msg) { publishStatusMsg(msg); }
@@ -1304,17 +1317,137 @@ void checkRtcDriftAndSync() {
   }
 }
 
-// ---------- Setup & Loop ----------
+// BLE callbacks
+// ---- Replace existing ControllerBLECallbacks with this corrected handler ----
+class ControllerBLECallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pChar) override {
+    // Use auto to accept either std::string or Arduino String and convert safely
+    auto v = pChar->getValue();
+    String payload = String(v.c_str());   // robust conversion
+    payload.trim();
+    Serial.print("BLE_RX: ");
+    Serial.println(payload);
+
+    if (payload.length() == 0) return;
+
+    // ensure SRC tag present for later processing
+    if (payload.indexOf("SRC=") < 0) payload += String(",SRC=BT");
+
+    // enqueue and process normally
+    enqueueIncoming(payload);
+    publishStatusMsg(String("EVT|INQ|ENQ|SRC=BT"));
+
+    // Build an acknowledgment. Prefer to echo MID if present.
+    String mid = extractKeyVal(payload, "MID"); // uses your existing helper
+    String ack;
+    if (mid.length()) {
+      ack = String("ACK|MID=") + mid + String("|BT|OK");
+    } else {
+      // no MID — send a simple echo ack for debugging
+      ack = String("ACK|BT|ECHO|") + payload;
+      if (ack.length() > 200) ack = ack.substring(0, 200);
+    }
+
+    // Send notification back if TX characteristic exists and a client is connected
+    if (pTxCharacteristic != nullptr && deviceConnected) {
+      // setValue accepts either std::string or byte buffer; use bytes for safety
+      pTxCharacteristic->setValue((uint8_t *)ack.c_str(), ack.length());
+      pTxCharacteristic->notify();
+      Serial.print("BLE_TX (notify): ");
+      Serial.println(ack);
+      delay(10);
+    } else {
+      Serial.println("BLE_TX: cannot notify - no client or TX char null");
+    }
+  }
+};
+
+
+// ---- Add this BLE server callback to track connection state ----
+class MyServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer* pServer) override {
+    deviceConnected = true;
+    Serial.println("BLE: client connected");
+    // optionally stop advertising to be less chatty
+    BLEAdvertising *adv = BLEDevice::getAdvertising();
+    if (adv) adv->stop();
+  }
+  void onDisconnect(BLEServer* pServer) override {
+    deviceConnected = false;
+    Serial.println("BLE: client disconnected");
+    // restart advertising to allow new connections
+    BLEDevice::startAdvertising();
+  }
+};
+
+// ---- Replace your initBLE() with this improved version ----
 void initBLE() {
-  BLEDevice::init(BLE_DEVICE_NAME);
-  BLEServer *pServer = BLEDevice::createServer();
-  BLEService *pService = pServer->createService(BLE_SERVICE_UUID);
-  BLECharacteristic *pCharacteristic = pService->createCharacteristic(BLE_CHAR_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-  pCharacteristic->setValue("OK"); pCharacteristic->setCallbacks(new ControllerBLECallbacks());
+  Serial.println("initBLE: starting");
+  BLEDevice::init("Wireless_Bridge"); // name shown by phone
+
+  // create server and attach callbacks
+  pServer = BLEDevice::createServer();
+  if (!pServer) {
+    Serial.println("initBLE: ERROR createServer() returned NULL");
+    return;
+  }
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  // use UART-like service/characteristics (you already defined SERVICE_UUID etc.)
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  if (!pService) {
+    Serial.println("initBLE: ERROR createService() returned NULL");
+    return;
+  }
+
+  // TX (notify) characteristic
+  pTxCharacteristic = pService->createCharacteristic(
+    CHARACTERISTIC_UUID_TX,
+    BLECharacteristic::PROPERTY_NOTIFY
+  );
+  if (pTxCharacteristic) {
+    pTxCharacteristic->addDescriptor(new BLE2902()); // client must enable notifications
+    pTxCharacteristic->setValue("OK");
+  } else {
+    Serial.println("initBLE: WARNING pTxCharacteristic NULL");
+  }
+
+  // RX (write) characteristic (phone -> device)
+  BLECharacteristic *pRxCharacteristic = pService->createCharacteristic(
+    CHARACTERISTIC_UUID_RX,
+    BLECharacteristic::PROPERTY_WRITE
+  );
+  if (!pRxCharacteristic) {
+    Serial.println("initBLE: ERROR create RX characteristic");
+  } else {
+    pRxCharacteristic->setCallbacks(new ControllerBLECallbacks());
+  }
+
+  // start service
   pService->start();
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising(); pAdvertising->addServiceUUID(BLE_SERVICE_UUID); pAdvertising->start();
-  Serial.println("BLE started");
+  Serial.println("initBLE: service started");
+
+  // advertise (both adv and scan response with name)
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x00);
+
+  BLEAdvertisementData advData;
+  advData.setName("Wireless_Bridge");
+  advData.setFlags(0x06);
+  String mfr = String("\x01\x02\x03\x04");
+  advData.setManufacturerData(mfr);
+  pAdvertising->setAdvertisementData(advData);
+
+  BLEAdvertisementData scanResp;
+  scanResp.setName("Wireless_Bridge");
+  pAdvertising->setScanResponseData(scanResp);
+
+  BLEDevice::startAdvertising();
+  Serial.println("BLE advertising started as: Wireless_Bridge");
 }
+
 
 void setup() {
   Serial.begin(115200); delay(200);
