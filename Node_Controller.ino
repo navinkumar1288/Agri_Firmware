@@ -1,7 +1,7 @@
 /*
   Node Controller - Heltec V3 (ESP32 + Radio driver + OLED)
+  - One soil sensor per valve (grouped)
   - Uses Heltec Radio driver (LoRaWan_APP.h) same pattern as Main Controller
-  - Supports up to 4 valves, each up to 2 soil sensors grouped
   - Reports battery %, battery voltage, solar voltage, optional current
   - Handles CMD|MID=...|OPEN/CLOSE/STATUS and replies ACK|MID=...|...|OK|...
 */
@@ -40,19 +40,19 @@ static SSD1306Wire display(0x3c, 500000, SDA_OLED, SCL_OLED, GEOMETRY_128_64, RS
 // Node config
 #define DEFAULT_NODE_ID 2
 
-// Up to 4 valves - set to -1 to disable a valve
+// Up to 4 valves
 #define VALVE_COUNT 4
-int VALVE_PINS[VALVE_COUNT] = {41, 42, 45, 46};
+int VALVE_PINS[VALVE_COUNT] = {41, 42, 45, 46};   // set to -1 to disable
 bool VALVE_ACTIVE_HIGH[VALVE_COUNT] = {true, true, true, true};
 bool valveOpen[VALVE_COUNT];
 unsigned long valveOpenUntilMs[VALVE_COUNT];
 
-// Soil sensors: per-valve up to 2 sensors (-1 = unused)
-const int SOIL_SENSOR_PINS[4][2] = {
-  {2, 3},
-  {4, -1},
-  {5, 6},
-  {-1, -1}
+// Soil sensor: one sensor per valve. Use -1 if no sensor for that valve.
+int SOIL_SENSOR_PIN[VALVE_COUNT] = {
+  2,   // valve 1 soil sensor (ADC pin)
+  4,   // valve 2 soil sensor
+  5,   // valve 3 soil sensor
+  -1   // valve 4 no sensor
 };
 
 // ADC / battery / solar pins & calibration
@@ -76,6 +76,9 @@ const int SOIL_WET_RAW = 1600;
 
 // Display refresh
 const unsigned long DISPLAY_REFRESH_MS = 1000;
+
+// Vext pin (display Vext control) — define a safe default; change if your board uses other pin
+#define Vext 16
 
 // -------------------- GLOBALS --------------------
 Preferences prefs;
@@ -104,6 +107,7 @@ void OnTxDone(void);
 void OnTxTimeout(void);
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr);
 void handleRadioPayload(const char *payload, uint16_t size);
+void sendLoRaPacketRadio(const String &msg);
 
 // -------------------- UTILITIES --------------------
 String safeField(const String &s) {
@@ -162,20 +166,23 @@ int moisturePercentFromRaw(int raw, int dryRaw = SOIL_DRY_RAW, int wetRaw = SOIL
 }
 
 // -------------------- Telemetry builder --------------------
+// Now includes only the per-valve soil sensor (single sensor) when available.
+// Soil field key: M{valve} e.g. M1=65
 String buildTelemetryExtra() {
   String extra = "";
-  for (int i=0;i<VALVE_COUNT;i++) {
+  for (int i = 0; i < VALVE_COUNT; ++i) {
     if (VALVE_PINS[i] < 0) continue;
     extra += String("VALVE") + String(i+1) + "=" + (valveOpen[i] ? "OPEN" : "CLOSED");
     unsigned long vt = 0;
     if (valveOpen[i] && valveOpenUntilMs[i] > millis()) vt = valveOpenUntilMs[i] - millis();
     extra += String(",VT") + String(i+1) + "=" + String(vt);
-    for (int s=0; s<2; ++s) {
-      int pin = SOIL_SENSOR_PINS[i][s];
-      if (pin < 0) continue;
-      int raw = readAdcRaw(pin);
+
+    // single soil sensor per valve
+    int sPin = SOIL_SENSOR_PIN[i];
+    if (sPin >= 0) {
+      int raw = readAdcRaw(sPin);
       int perc = moisturePercentFromRaw(raw);
-      extra += String(",M") + String(i+1) + "_" + String(s+1) + "=" + String(perc);
+      extra += String(",M") + String(i+1) + "=" + String(perc);
     }
     extra += String(",");
   }
@@ -204,22 +211,26 @@ void sendAck(uint32_t mid, const String &type, int node, const String &sched, in
 }
 
 // -------------------- CMD parsing --------------------
-// CMD|MID=123|OPEN|N=2,V=1,S=SC001,I=1,T=60000
+// Robust parser: expects at least "CMD|MID=...|TYPE|kv..."
 bool parseCmd(const String &msg, uint32_t &outMid, String &outType, int &outN, String &outS, int &outI, uint32_t &outT, String &outVraw) {
   outMid = 0; outType=""; outN=-1; outS=""; outI=-1; outT=0; outVraw="";
   String s = msg; s.trim();
   if (!s.startsWith("CMD|")) return false;
   std::vector<String> parts;
   int start = 0;
-  for (int i=0;i<(int)s.length();++i) if (s[i]=='|') { parts.push_back(s.substring(start,i)); start = i+1; }
+  for (int i = 0; i < (int)s.length(); ++i) {
+    if (s[i] == '|') { parts.push_back(s.substring(start, i)); start = i + 1; }
+  }
   parts.push_back(s.substring(start));
-  if (parts.size() < VALVE_COUNT) return false;
+  if (parts.size() < 4) return false;
   String midPart = parts[1];
   if (!midPart.startsWith("MID=")) return false;
-  outMid = (uint32_t)midPart.substring(VALVE_COUNT).toInt();
+  outMid = (uint32_t)midPart.substring(4).toInt();
   outType = parts[2];
+  // rebuild remaining KV part
   String kv = parts[3];
-  for (size_t i=VALVE_COUNT;i<parts.size();++i) kv += String("|") + parts[i];
+  for (size_t i = 4; i < parts.size(); ++i) kv += String("|") + parts[i];
+
   int pos = 0;
   while (pos < (int)kv.length()) {
     int comma = kv.indexOf(',', pos);
@@ -232,8 +243,8 @@ bool parseCmd(const String &msg, uint32_t &outMid, String &outType, int &outN, S
       if (k == "N") outN = v.toInt();
       else if (k == "S") outS = v;
       else if (k == "I") outI = v.toInt();
-      else if (k == "T") { unsigned long t = (unsigned long)v.toInt(); if (t>0 && t<=86400 && v.length()<=VALVE_COUNT) t = t*1000UL; outT = t; }
-      else if (k == "V") outVraw = v; // valve selector
+      else if (k == "T") { unsigned long t = (unsigned long)v.toInt(); if (t>0 && t<=86400) t = t*1000UL; outT = t; }
+      else if (k == "V") outVraw = v;
     }
     if (comma == -1) break;
     pos = comma + 1;
@@ -245,7 +256,7 @@ std::vector<int> parseValveSelector(const String &vraw) {
   std::vector<int> res;
   if (vraw.length() == 0) return res;
   String s = vraw; s.trim(); s.toUpperCase();
-  if (s == "ALL") { for (int i=0;i<VALVE_COUNT;i++) if (VALVE_PINS[i] >= 0) res.push_back(i); return res; }
+  if (s == "ALL") { for (int i=0;i<VALVE_COUNT;i++) if (VALVE_PINS[i]>=0) res.push_back(i); return res; }
   int pos=0;
   while (pos < (int)s.length()) {
     int comma = s.indexOf(',', pos);
@@ -271,7 +282,6 @@ std::vector<int> parseValveSelector(const String &vraw) {
 // -------------------- RADIO: OnTx/OnRx handlers --------------------
 void OnTxDone(void) {
   Serial.println("[Radio] TX done");
-  // return to receive mode
   Radio.Rx(0);
 }
 void OnTxTimeout(void) {
@@ -279,14 +289,11 @@ void OnTxTimeout(void) {
   Radio.Rx(0);
 }
 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr) {
-  // copy into rxpacket and null-terminate
   if (size >= (int)sizeof(rxpacket)) size = sizeof(rxpacket)-1;
   memcpy(rxpacket, payload, size);
   rxpacket[size] = '\0';
   Serial.printf("[Radio] RX %d bytes RSSI=%d SNR=%d => %s\n", size, rssi, snr, rxpacket);
-  // Handle payload directly (process CMDs here)
   handleRadioPayload(rxpacket, size);
-  // go back to RX
   Radio.Rx(0);
 }
 
@@ -297,14 +304,13 @@ void sendLoRaPacketRadio(const String &msg) {
   Serial.printf("[Radio TX] %s\n", txpacket);
 }
 
-// process radio payload (string) similarly to earlier LoRa.parsePacket() branch
+// process radio payload (string)
 void handleRadioPayload(const char *payload, uint16_t size) {
   String msg = String(payload);
   msg.trim();
   if (msg.length() == 0) return;
   Serial.println(String("[RADIO PAYLOAD] ") + msg);
-  // If payload doesn't have SRC, optionally add (we don't need to for node)
-  // Now parse as CMD and react
+
   uint32_t mid=0; String type; int n=-1; String sched=""; int idx=-1; uint32_t t_ms=0; String vraw="";
   if (parseCmd(msg, mid, type, n, sched, idx, t_ms, vraw)) {
     Serial.printf("Parsed CMD MID=%u TYPE=%s N=%d V=%s S=%s I=%d T=%lu\n", (unsigned)mid, type.c_str(), n, vraw.c_str(), sched.c_str(), idx, (unsigned long)t_ms);
@@ -317,18 +323,14 @@ void handleRadioPayload(const char *payload, uint16_t size) {
           setValveState(vidx, true);
           if (t_ms > 0) valveOpenUntilMs[vidx] = millis() + t_ms; else valveOpenUntilMs[vidx] = 0;
         }
-        // reply ACK
-        String vlist="";
-        for (size_t i=0;i<targets.size();++i) { if (i) vlist += ","; vlist += String(targets[i]+1); }
-        sendAck(mid, "OPEN", NODE_ID, sched, idx, String("VLIST=") + vlist);
+        // reply ACK including that valve's soil data (if present) via buildTelemetryExtra()
+        sendAck(mid, "OPEN", NODE_ID, sched, idx, buildTelemetryExtra());
       } else if (type == "CLOSE") {
         for (int vidx : targets) {
           setValveState(vidx, false);
           valveOpenUntilMs[vidx] = 0;
         }
-        String vlist="";
-        for (size_t i=0;i<targets.size();++i) { if (i) vlist += ","; vlist += String(targets[i]+1); }
-        sendAck(mid, "CLOSE", NODE_ID, sched, idx, String("VLIST=") + vlist);
+        sendAck(mid, "CLOSE", NODE_ID, sched, idx, buildTelemetryExtra());
       } else if (type == "STATUS" || type == "DETAIL" || type == "INFO") {
         String tele = buildTelemetryExtra();
         sendAck(mid, "STATUS", NODE_ID, sched, idx, tele);
@@ -344,13 +346,11 @@ void handleRadioPayload(const char *payload, uint16_t size) {
 }
 
 // -------------------- Display (Heltec) --------------------
-
 void VextON(){ pinMode(Vext, OUTPUT); digitalWrite(Vext, LOW); }
 void VextOFF(){ pinMode(Vext, OUTPUT); digitalWrite(Vext, HIGH); }
 
-// -------------------- Display (Heltec) --------------------
 void displayInitHeltec() {
-  VextON(); 
+  VextON();
   delay(50);
   display.init();
   display.setFont(ArialMT_Plain_10);
@@ -358,7 +358,7 @@ void displayInitHeltec() {
   display.drawString(0, 12, "Initializing...");
   display.display();
   delay(300);
-  display.clear(); 
+  display.clear();
   display.display();
 }
 
@@ -419,11 +419,9 @@ void IRAM_ATTR buttonISR() {
 
 // -------------------- LoRa init (Radio driver) --------------------
 void loraInit() {
-  // Mcu.begin macro/setup used by the Heltec radio stack - same as main controller
 #ifdef HELTEC_BOARD
   Mcu.begin(HELTEC_BOARD, SLOW_CLK_TPYE);
 #else
-  // If HELTEC_BOARD macro not available in this library version, just print startup
   Serial.println("Mcu.begin: HELTEC_BOARD macro not present; continuing (may still work).");
 #endif
 
@@ -444,7 +442,6 @@ void loraInit() {
                     LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
                     0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
 
-  // Start in receive mode
   Radio.Rx(0);
 
   Serial.println("Heltec Radio LoRa init OK (Node)");
@@ -459,19 +456,18 @@ void setup() {
   NODE_ID = prefs.getInt("node_id", DEFAULT_NODE_ID);
   Serial.printf("Node ID = %d\n", NODE_ID);
 
-   // initialize valve pins (closed)
-  for (int i=0;i<4;i++) {
+  // initialize valve pins (closed)
+  for (int i=0;i<VALVE_COUNT;i++) {
     Serial.print("Valve index: "); Serial.println(i);
     if (VALVE_PINS[i] >= 0) {
       Serial.print("VALVE_PINS index: "); Serial.println(i);
       pinMode(VALVE_PINS[i], OUTPUT);
-      if (VALVE_ACTIVE_HIGH[i]) {digitalWrite(VALVE_PINS[i], LOW);}
-      else {digitalWrite(VALVE_PINS[i], HIGH);}
+      if (VALVE_ACTIVE_HIGH[i]) { digitalWrite(VALVE_PINS[i], LOW); }
+      else { digitalWrite(VALVE_PINS[i], HIGH); }
       valveOpen[i] = false;
       valveOpenUntilMs[i] = 0;
     }
   }
-
 
   analogReadResolution(12);
 
@@ -506,7 +502,6 @@ void loop() {
   // Auto-close per valve timers
   unsigned long now = millis();
   for (int i=0;i<VALVE_COUNT;i++) {
-    //Serial.print("Valve index: "); Serial.println(i);
     if (VALVE_PINS[i] >= 0 && valveOpen[i] && valveOpenUntilMs[i] > 0 && now >= valveOpenUntilMs[i]) {
       Serial.printf("Auto-close valve %d\n", i+1);
       setValveState(i, false);
@@ -516,13 +511,14 @@ void loop() {
       extra += String(",VALVE") + String(i+1) + "=CLOSED";
       float battV = readBatteryVoltage();
       extra += String(",BATT=") + String((int)round(batteryPctFromVoltage(battV))) + String(",BV=") + String(battV,2);
-      for (int s=0;s<2;s++) {
-        int pin = SOIL_SENSOR_PINS[i][s];
-        if (pin>=0) {
-          int raw = readAdcRaw(pin);
-          extra += String(",M") + String(i+1) + "_" + String(s+1) + "=" + String(moisturePercentFromRaw(raw));
-        }
+
+      // include ONLY the soil sensor for this valve if present
+      int sPin = SOIL_SENSOR_PIN[i];
+      if (sPin >= 0) {
+        int raw = readAdcRaw(sPin);
+        extra += String(",M") + String(i+1) + "=" + String(moisturePercentFromRaw(raw));
       }
+
       sendLoRaPacketRadio(extra);
       // refresh display
       lastDisplayMs = 0;
